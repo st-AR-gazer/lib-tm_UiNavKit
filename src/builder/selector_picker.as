@@ -487,7 +487,7 @@ namespace UiNavKit {
                     dbgLines.InsertLast("  result=none totalVisited=" + totalVisited + " totalGeomFailed=" + totalGeomFailed);
                     string outS = "";
                     for (uint i = 0; i < dbgLines.Length; ++i) outS += (i == 0 ? "" : "\n") + dbgLines[i];
-                    log(outS, LogLevel::Info, 492, "UiNavKit::Builder::SelectorPickNow");
+                    log(outS, LogLevel::Info, 490, "UiNavKit::Builder::SelectorPickNow");
                 }
                 return false;
             }
@@ -508,7 +508,7 @@ namespace UiNavKit {
                 }
                 string outS = "";
                 for (uint i = 0; i < dbgLines.Length; ++i) outS += (i == 0 ? "" : "\n") + dbgLines[i];
-                log(outS, LogLevel::Info, 513, "UiNavKit::Builder::SelectorPickNow");
+                log(outS, LogLevel::Info, 511, "UiNavKit::Builder::SelectorPickNow");
             }
 
             if (S_SelectorSyncMlSelection || S_SelectorSyncControlTreeSelection) {
@@ -582,7 +582,7 @@ namespace UiNavKit {
                 log(
                     "[UiNav.Builder.Selector] SyncCT hitIx=" + hitIx + " ml=" + _SelectorAppKindLabel(row.appKind) + " L" + row.layerIx + " /" + (row.path.Length > 0 ? row.path : "<root>") + " -> overlay=" + overlay + " rootIx=" + rootIx + " relPath=" + (relPath.Length > 0 ? relPath : "<root>"),
                     LogLevel::Info,
-                    584,
+                    582,
                     "UiNavKit::Builder::SelectorSyncHitToControlTreeSelection"
                 );
             }
