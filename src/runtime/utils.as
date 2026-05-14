@@ -1,0 +1,269 @@
+// Fun Utils I use from time to time
+
+namespace _Text {
+    int NthLastIndexOf(const string &in str, const string &in value, int n) {
+        int index = -1;
+        for (int i = str.Length - 1; i >= 0; --i) {
+            if (str.SubStr(i, value.Length) == value) {
+                if (n == 1) {
+                    index = i;
+                    break;
+                }
+                --n;
+            }
+        }
+        return index;
+    }
+
+    int NthIndexOf(const string &in str, const string &in value, int n) {
+        if (n <= 0 || value.Length == 0) return -1;
+
+        int searchFrom = 0;
+        int lastFound = -1;
+
+        for (int occ = 0; occ < n; ++occ) {
+            int found = -1;
+            for (int i = searchFrom; i <= str.Length - value.Length; ++i) {
+                if (str.SubStr(i, value.Length) == value) {
+                    found = i;
+                    break;
+                }
+            }
+            if (found == -1) return -1;
+            lastFound = found;
+            searchFrom = found + value.Length;
+        }
+        return lastFound;
+    }
+
+    // ty XertroV
+    string GetRandomIcon(const string &in hash) {
+        auto icons = Icons::GetAll();
+        auto iconKeys = icons.GetKeys();
+        if (hash.Length < 16) log("Hash must be at least 16 hex characters long.", LogLevel::Error, 43, "_Text::GetRandomIcon");
+        auto n = Text::ParseUInt(hash.SubStr(4, 4), 16);
+        return string(icons[iconKeys[n % iconKeys.Length]]);
+    }
+}
+
+namespace _IO {
+    namespace Directory {
+        bool IsDirectory(const string &in path) {
+            if (path.EndsWith("/") || path.EndsWith("\\")) return true;
+            return false;
+        }
+
+        string GetParentDirectoryName(const string &in path) {
+            string trimmedPath = path;
+
+            if (!IsDirectory(trimmedPath)) {
+                return _IO::File::GetFilePathWithoutFileName(trimmedPath);
+            }
+
+            if (trimmedPath.EndsWith("/") || trimmedPath.EndsWith("\\")) {
+                trimmedPath = trimmedPath.SubStr(0, trimmedPath.Length - 1);
+            }
+
+            int index = trimmedPath.LastIndexOf("/");
+            int index2 = trimmedPath.LastIndexOf("\\");
+
+            index = Math::Max(index, index2);
+
+            if (index == -1) {
+                return "";
+            }
+
+            return trimmedPath.SubStr(index + 1);
+        }
+    }
+
+    namespace File {
+        bool IsFile(const string &in path) {
+            if (IO::FileExists(path)) return true;
+            return false;
+        }
+
+        string _NormalizePathForCompare(const string &in rawPath) {
+            string p = rawPath.Trim();
+            p = p.Replace("\\", "/");
+            while (p.IndexOf("//") >= 0) p = p.Replace("//", "/");
+            return p.ToLower();
+        }
+
+        bool _IsUiNavLogsPath(const string &in rawPath) {
+            string p = _NormalizePathForCompare(rawPath);
+            if (p.Length == 0) return false;
+            if (p == "logs" || p.StartsWith("logs/")) return true;
+
+            string logsRoot = _NormalizePathForCompare(IO::FromStorageFolder("Logs"));
+            if (!logsRoot.EndsWith("/")) logsRoot += "/";
+            if (p == logsRoot.SubStr(0, logsRoot.Length - 1)) return true;
+            return p.StartsWith(logsRoot);
+        }
+
+        string _FileNameFromPath(const string &in rawPath) {
+            string p = rawPath.Replace("\\", "/");
+            int ix = p.LastIndexOf("/");
+            if (ix < 0) return p;
+            if (ix >= int(p.Length) - 1) return "";
+            return p.SubStr(ix + 1);
+        }
+
+        string _RedirectPathOutOfLogs(const string &in rawPath) {
+            string fileName = Path::SanitizeFileName(_FileNameFromPath(rawPath));
+            if (fileName.Length == 0) fileName = "uinav_redirected_write.txt";
+            return IO::FromStorageFolder("Exports/RedirectedWrites/" + fileName);
+        }
+
+        void WriteFile(string _path, const string &in content, bool verbose = false) {
+            string path = _path;
+            if (verbose) log("Writing to file: " + path, LogLevel::Info, 120, "_IO::File::WriteFile");
+
+            if (path.EndsWith("/") || path.EndsWith("\\")) {
+                log("Invalid file path: " + path, LogLevel::Error, 123, "_IO::File::WriteFile");
+                return;
+            }
+
+            if (_IsUiNavLogsPath(path)) {
+                string redirected = _RedirectPathOutOfLogs(path);
+                log(
+                    "Blocked non-logging write to UiNav/Logs; redirected to: " + redirected,
+                    LogLevel::Warning,
+                    129,
+                    "_IO::File::WriteFile"
+                );
+                path = redirected;
+            }
+
+            if (!IO::FolderExists(Path::GetDirectoryName(path))) {
+                IO::CreateFolder(Path::GetDirectoryName(path), true);
+            }
+
+            IO::File file;
+            file.Open(path, IO::FileMode::Write);
+            file.Write(content);
+            file.Close();
+        }
+
+        string GetFilePathWithoutFileName(const string &in path) {
+            int index = path.LastIndexOf("/");
+            int index2 = path.LastIndexOf("\\");
+
+            index = Math::Max(index, index2);
+
+            if (index == -1) {
+                return "";
+            }
+
+            return path.SubStr(0, index);
+        }
+
+        void WriteJsonFile(const string &in path, const Json::Value &in value) {
+            string content = Json::Write(value);
+            WriteFile(path, content);
+        }
+
+        // Read from file
+        string ReadFileToEnd(const string &in path, bool verbose = false) {
+            if (verbose) log("Reading file: " + path, LogLevel::Info, 168, "_IO::File::ReadFileToEnd");
+            if (!IO::FileExists(path)) {
+                log("File does not exist: " + path, LogLevel::Error, 170, "_IO::File::ReadFileToEnd");
+                return "";
+            }
+
+            IO::File file(path, IO::FileMode::Read);
+            string content = file.ReadToEnd();
+            file.Close();
+            return content;
+        }
+
+        string ReadSourceFileToEnd(const string &in path, bool verbose = false) {
+            if (!IO::FileExists(path)) {
+                log("File does not exist: " + path, LogLevel::Error, 182, "_IO::File::ReadSourceFileToEnd");
+                return "";
+            }
+
+            IO::FileSource f(path);
+            string content = f.ReadToEnd();
+            return content;
+        }
+
+        // Move file
+        void CopySourceFileToNonSource(
+            const string &in originalPath,
+            const string &in storagePath,
+            bool verbose = false
+        ) {
+            if (verbose) log("Moving the file content", LogLevel::Info, 197, "_IO::File::ReadSourceFileToEnd");
+
+            string fileContents = ReadSourceFileToEnd(originalPath);
+            WriteFile(storagePath, fileContents);
+
+            if (verbose) log("Finished moving the file", LogLevel::Info, 202, "_IO::File::ReadSourceFileToEnd");
+
+            // TODO: Must check how IO::Move works with source files
+        }
+
+        // Copy file
+        void CopyFileTo(const string &in source, const string &in destination, bool verbose = false) {
+            if (!IO::FileExists(source)) {
+                if (verbose) log(
+                    "Source file does not exist: " + source,
+                    LogLevel::Error,
+                    210,
+                    "_IO::File::CopyFileTo"
+                );
+                return;
+            }
+            if (IO::FileExists(destination)) {
+                if (verbose) log(
+                    "Destination file already exists: " + destination,
+                    LogLevel::Error,
+                    214,
+                    "_IO::File::CopyFileTo"
+                );
+                return;
+            }
+
+            string content = ReadFileToEnd(source, verbose);
+            WriteFile(destination, content, verbose);
+        }
+
+        // Rename file
+        void RenameFile(const string &in filePath, const string &in newFileName, bool verbose = false) {
+            if (verbose) log("Attempting to rename file: " + filePath, LogLevel::Info, 224, "_IO::File::RenameFile");
+            if (!IO::FileExists(filePath)) {
+                log("File does not exist: " + filePath, LogLevel::Error, 226, "_IO::File::RenameFile");
+                return;
+            }
+
+            string currentPath = filePath;
+            string newPath;
+
+            string sanitizedNewName = Path::SanitizeFileName(newFileName);
+
+            if (Directory::IsDirectory(newPath)) {
+                while (currentPath.EndsWith("/") || currentPath.EndsWith("\\")) {
+                    currentPath = currentPath.SubStr(0, currentPath.Length - 1);
+                }
+
+                string parentDirectory = Path::GetDirectoryName(currentPath);
+                newPath = Path::Join(parentDirectory, sanitizedNewName);
+            } else {
+                string directoryPath = Path::GetDirectoryName(currentPath);
+                string extension = Path::GetExtension(currentPath);
+                newPath = Path::Join(directoryPath, sanitizedNewName + extension);
+            }
+
+            IO::Move(currentPath, newPath);
+        }
+    }
+
+    void OpenFolder(const string &in path, bool verbose = false) {
+        if (IO::FolderExists(path)) {
+            OpenExplorerPath(path);
+        } else {
+            if (verbose) log("Folder does not exist: " + path, LogLevel::Info, 256, "_IO::OpenFolder");
+        }
+    }
+}

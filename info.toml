@@ -5,8 +5,4 @@ version = "0.1.0"
 category = "Utilities"
 
 [script]
-module = "UiNavKit"
-dependencies = ["UiNav"]
-exports = []
-shared_exports = []
-optional_dependencies = []
+dependencies = [ "UiNav" ]
